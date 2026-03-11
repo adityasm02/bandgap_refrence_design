@@ -93,22 +93,227 @@ Now by connecting all above components we can get the complete BGR circuit.
 ---
 
 ## 3. Simulations and Results
+For the practical implementation of the Bandgap Reference (BGR) circuit, the **SkyWater SKY130 (130 nm)** PDK is used.  
+Before designing the complete circuit, we must first define the **design requirements** that our circuit should meet.
 
-### 3.1 Tools and PDKs
-* **Design Tool:** [e.g., Xschem / Magic]
-* **Simulator:** [e.g., Ngspice]
-* **PDK:** Sky130 (SkyWater 130nm)
+---
 
-### 3.2 Prelayout Simulations
-Show your waveforms here (Voltage vs. Temperature).
-* ![Prelayout Waveform](path/to/prelayout_sim.png)
-* **Analysis:** Discuss the temperature coefficient and output voltage stability.
+### 3.1 Design Requirements
 
-### 3.3 Layout and LVS
-* **Layout:** ![Layout Screenshot](path/to/layout_ss.png)
-* **LVS Report:** Mention that the Netlist matches the Layout.
+| Parameter | Specification |
+|------------|----------------|
+| Supply Voltage (VDD) | 1.8 V |
+| Temperature Range | -40°C to 125°C |
+| Power Consumption | < 60 µW |
+| Off Current | < 2 µA |
+| Start-up Time | < 2 µs |
+| Temperature Coefficient (Tempco) of Vref | < 50 ppm/°C |
 
-### 3.4 Post-Layout Simulations
-Compare these results with the prelayout ones to show the effect of parasitics.
-* ![Post-Layout Waveform](path/to/postlayout_sim.png)
-* **Conclusion:** Briefly summarize how the circuit performed.
+---
+
+### 3.2 Device Data Sheet
+
+#### 1. MOSFET
+
+| Parameter | NFET | PFET |
+|------------|-------|-------|
+| Type | LVT | LVT |
+| Voltage Rating | 1.8 V | 1.8 V |
+| Threshold Voltage (Vt0) | ~0.4 V | ~-0.6 V |
+| Model | sky130_fd_pr__nfet_01v8_lvt | sky130_fd_pr__pfet_01v8_lvt |
+
+---
+
+#### 2. Bipolar Junction Transistor (PNP)
+
+| Parameter | PNP |
+|------------|------|
+| Current Rating | 1 µA – 10 µA/µm² |
+| Beta (β) | ~12 |
+| Area | 11.56 µm² |
+| Model | sky130_fd_pr__pnp_05v5_W3p40L3p40 |
+
+---
+
+#### 3. Resistor (RPOLYH)
+
+| Parameter | RPOLYH |
+|------------|----------|
+| Sheet Resistance | ~350 Ω/sq |
+| Tempco | 2.5 Ω/°C |
+| Available Widths | 0.35 µm, 0.69 µm, 1.41 µm, 5.37 µm |
+| Model | sky130_fd_pr__res_high_po |
+
+---
+
+### 3.3 Circuit Design
+
+#### 1. Current Calculation
+
+Maximum Power Consumption = 60 µW  
+Supply Voltage = 1.8 V  
+
+Total Current = 60 µW / 1.8 V = 33.33 µA  
+
+Hence, 10 µA per branch is selected (3 × 10 = 30 µA)  
+Start-up current = 1–2 µA  
+
+
+#### 2. Choosing Number of BJTs in Branch 2
+
+- Fewer BJTs → smaller resistance but poorer matching  
+- More BJTs → higher resistance but better matching  
+
+Chosen compromise: **8 BJTs** in parallel for good matching and moderate resistance.
+
+
+#### 3. Calculation of R1
+
+R1 = (Vt × ln(8)) / I  
+R1 = (26 mV × ln(8)) / 10.7 µA ≈ 5 kΩ  
+
+R1 Size:  
+- W = 1.41 µm  
+- L = 7.8 µm  
+- Unit resistance = 2 kΩ  
+
+Resistor implementation: 2 in series and 2 in parallel (2 + 2 + (2‖2))
+
+
+#### 4. Calculation of R2
+
+Current through reference branch:  
+I3 = I2 = (Vt × ln(8)) / R1  
+
+Voltage across R2:  
+VR2 = R2 × I3 = (R2 / R1) × (Vt × ln(8))  
+
+Slope of VR2 = (R2 / R1) × (ln(8) × 115 µV/°C)  
+Slope of VQ3 = -1.6 mV/°C  
+
+For zero temperature coefficient,  
+Total slope = 0 → R2 ≈ 33 kΩ  
+
+Resistor implementation: 16 in series and 2 in parallel (2 + 2 + … + 2 + (2‖2))
+
+
+#### 5. Self-Biased Current Mirror (SBCM) Design
+
+##### A. PMOS Design (MP1, MP2)
+
+- Operate both transistors in saturation region.  
+- Increase channel length to reduce channel length modulation.  
+- Final size: L = 2 µm, W = 5 µm, M = 4  
+
+##### B. NMOS Design (MN1, MN2)
+
+- Operate both transistors either in saturation or deep subthreshold region.  
+- Here, they are designed to work in deep subthreshold region.  
+- Increase channel length to improve stability.  
+- Final size: L = 1 µm, W = 5 µm, M = 8  
+  
+### Final Circuit
+![Final_circuit](images/final_ckt.png)
+
+---
+
+### 3.4 Writing spice netlist and Pre-layout simulation
+#### Steps to write netlist  
+1. Create a file with `.sp` extension, open with any editor like `gvim` / `vim` / `nano`.
+2. The 1st line of the Spice netlist is by default a comment line.
+3. To write a valid netlist we must include the library file (with absolute path) and mention the corner name (tt, ff or ss).
+![CTAT_netlist](images/ctat_netlist.png)
+
+
+## Netlist Explanation 
+
+### 1️. Global and Temperature Setup
+- `.global vdd gnd` → Declares **VDD** and **GND** as global nodes, accessible throughout the design.  
+- `.temp 27` → Sets the **simulation temperature** to **27°C (room temperature)**.
+
+---
+
+### 2️. Voltage-Controlled Voltage Source (VCVS)
+```spice
+*** vcvs definition
+e1 ra1 qp1 net2 gnd gain=1000
+````
+e1 defines a VCVS (Voltage-Controlled Voltage Source).
+
+Input nodes: qp1 and net2
+
+Output nodes: ra1 and gnd
+
+gain=1000 → Output voltage = 1000 × (V(qp1) - V(net2))
+
+Used for amplification or feedback control in analog reference circuits.
+### 3️. MOSFET Definition (PMOS Devices)
+```spice
+*** mosfet definition
+xmp1 q1 net2 vdd vdd sky130_fd_pr__pfet_01v8_lvt l=2 w=5 m=4
+xmp2 q2 net2 vdd vdd sky130_fd_pr__pfet_01v8_lvt l=2 w=5 m=4
+```
+xmp1, xmp2 are PMOS transistors used in bias or mirror configurations.
+
+Model: sky130_fd_pr__pfet_01v8_lvt → 1.8V Low-Threshold PMOS (from Sky130 PDK).
+
+Node order: Drain → Gate → Source → Bulk
+
+Parameters:
+
+l=2 → Channel Length = 2µm
+
+w=5 → Channel Width = 5µm
+
+m=4 → 4 parallel transistors for higher drive strength and better matching.
+
+Both transistors share the same gate (net2) to form a current mirror or load pair.
+
+### 4️. Resistor Definition
+```spice
+**resistor definition
+xra ra1 qp2 gnd sky130_fd_pr__res_high_po_1p41 l=30
+```
+xra defines a high-poly resistor using Sky130 PDK.
+
+Model: sky130_fd_pr__res_high_po_1p41 → High-Resistivity Polysilicon Resistor.
+
+Nodes: Between ra1 and qp2, connected to gnd.
+
+Parameter: l=30 → Resistor length = 30µm (resistance ∝ length).
+
+Used to generate voltage drops or temperature-dependent resistances in the circuit.
+
+ ### 5️. BJT (PNP Transistor) Definition
+```spice
+**bjt definition
+xqp1 gnd gnd qp1 gnd sky130_fd_pr__pnp_05v5_w3p40l3p40 m=1
+xqp2 gnd gnd qp2 gnd sky130_fd_pr__pnp_05v5_w3p40l3p40 m=8
+```
+xqp1, xqp2 are PNP BJTs used for CTAT and PTAT voltage generation.
+
+Model: sky130_fd_pr__pnp_05v5_w3p40l3p40 → 5V PNP transistor from SkyWater PDK.
+
+Node order: Collector → Base → Emitter → Substrate
+
+Parameters:
+
+m=1 → Single transistor (for base reference branch).
+
+m=8 → 8 parallel BJTs (used to adjust emitter area and current density).
+
+Increasing m improves matching and modifies Vbe slope for temperature compensation.
+![Terminal_CTAT_spice](images/term_ctat_sp.png)
+
+
+### 3.4.1 CTAT Simulation 
+#### Simulation Command  
+Open your terminal and navigate to the **prelayout** directory.  
+Run the following command to launch the simulation:
+
+```bash
+cd /workspaces/vsd-bandgap/bandgap/prelayout/
+ngspice ctat_voltage_gen.sp
+```
+After simulation we can get a wavefrom like below, and from the wavefrom we can see the CTAT behaviour of the BJT  
+![CTAT_sim](images/ctat_sim.png)
