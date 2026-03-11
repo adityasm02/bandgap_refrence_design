@@ -354,19 +354,19 @@ In this simulation we should get the reference voltgae as an umbrella shaped cur
 
 Now we will replace the ideal Op-Amp with self-biased current mirror which is our proposed design. We expect same type of output as in case of ideal OpAmp based BGR. We will also check for different corners, and will see how our circuit is performing in different corners.
 
-- Behaviour in TT corner [netlsit](/prelayout/bgr_lvt_rpolyh_3p40.sp)
+- Behaviour in TT corner 
 
   ![bgr_tt](images/bgr_tt.png)
 
 Tempco. Of Vref = ~21.7 PPM
 
-- Behaviour in FF corner [netlist](/prelayout/bgr_lvt_rpolyh_3p40_ff.sp)
+- Behaviour in FF corner 
 
   ![bgr_ff](images/bgr_ff.png)
 
 Tempco. Of Vref = ~10 PPM
 
-- Behaviour in SS corner [netlist](/prelayout/bgr_lvt_rpolyh_3p40_ss.sp)
+- Behaviour in SS corner 
 
   ![bgr_ss](images/bgr_ss.png)
 
