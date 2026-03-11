@@ -344,7 +344,7 @@ ngspice ptat_voltage_gen.sp
 
 #### 3.4.3 BGR using Ideal OpAmp
 
-Now after simulating all our components, let's quick check our BGR behaviour using one VCVS as an ideal OpAmp. [netlist](/prelayout/bgr_using_ideal_opamp.sp)
+Now after simulating all our components, let's quick check our BGR behaviour using one VCVS as an ideal OpAmp.  
 
 In this simulation we should get the reference voltgae as an umbrella shaped curve and it should be ~1.2V.    
 
