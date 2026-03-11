@@ -79,6 +79,17 @@ Now by connecting all above components we can get the complete BGR circuit.
 
   ![Full Schematic](images/fullbgr.png)
 
+### Advantages of SBCM BGR:
+  Simplest topology  
+  Easy to design  
+  Always stable  
+  
+### Limitations of SBCM BGR:
+  Low power supply rejection ratio (PSRR)  
+  Cacode design needed to reduce PSRR  
+  Voltage head-room issue  
+  Need start-up circuit  
+
 ---
 
 ## 3. Simulations and Results
