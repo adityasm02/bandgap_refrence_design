@@ -1,4 +1,4 @@
-# Project Title: Design of a Bandgap Reference Circuit
+# Project Title: Design of 1.2V Bandgap Reference Circuit
 
 ## 1. Introduction
 This project involves the design and implementation of a Curvature-Compensated Bandgap Reference (BGR) circuit using the Sky130 (130nm) Process Design Kit. The primary objective is to generate a stable reference voltage ($V_{ref}$) that remains independent of supply voltage variations (Power Supply Rejection) and temperature fluctuations. By combining a PTAT (Proportional to Absolute Temperature) current and a CTAT (Complementary to Absolute Temperature) voltage, the circuit achieves a near-zero temperature coefficient, making it an essential building block for analog and mixed-signal systems like ADCs and LDOs.
@@ -213,7 +213,7 @@ Resistor implementation: 16 in series and 2 in parallel (2 + 2 + … + 2 + (2‖
 - Final size: L = 1 µm, W = 5 µm, M = 8  
   
 ### Final Circuit
-![Final_circuit](images/final_ckt.png)
+![Final_circuit](images/finalbgr.png)
 
 ---
 
@@ -222,6 +222,7 @@ Resistor implementation: 16 in series and 2 in parallel (2 + 2 + … + 2 + (2‖
 1. Create a file with `.sp` extension, open with any editor like `gvim` / `vim` / `nano`.
 2. The 1st line of the Spice netlist is by default a comment line.
 3. To write a valid netlist we must include the library file (with absolute path) and mention the corner name (tt, ff or ss).
+
 ![CTAT_netlist](images/ctat_netlist.png)
 
 
@@ -302,8 +303,7 @@ m=1 → Single transistor (for base reference branch).
 
 m=8 → 8 parallel BJTs (used to adjust emitter area and current density).
 
-Increasing m improves matching and modifies Vbe slope for temperature compensation.
-![Terminal_CTAT_spice](images/term_ctat_sp.png)
+Increasing m improves matching and modifies Vbe slope for temperature compensation.  
 
 
 ### 3.4.1 CTAT Simulation 
@@ -315,5 +315,135 @@ Run the following command to launch the simulation:
 cd /workspaces/vsd-bandgap/bandgap/prelayout/
 ngspice ctat_voltage_gen.sp
 ```
-After simulation we can get a wavefrom like below, and from the wavefrom we can see the CTAT behaviour of the BJT  
+After simulation we can get a wavefrom like below, and from the wavefrom we can see the CTAT behaviour of the BJT   
+
+
 ![CTAT_sim](images/ctat_sim.png)
+
+### CTAT Voltage generation with Multiple BJT netlist
+
+In this simulation we will check the CTAT voltage across the 8 parallel connected BJTs. Change the value of m from 1 to 8 in the BJT definition in the netlist.  
+
+![CTAT_multiple_BJT_sim](images/ctat_multibjt_sim.png)  
+we can see the slope is increasing in case of multiple BJTs.
+
+### CTAT Voltage generation with different current source values netlist
+
+![CTAT_multiCS_sim](images/ctat_multiCS_sim.png)
+
+### 3.4.2 PTAT Simulation
+#### Simulation Command 
+```bash
+cd /workspaces/vsd-bandgap/bandgap/prelayout/
+ngspice ptat_voltage_gen.sp
+```
+
+![PTAT_spice](images/ptat_spice_term.png)
+![PTAT_sim](images/ptat_sim.png)
+
+
+#### 3.4.3 BGR using Ideal OpAmp
+
+Now after simulating all our components, let's quick check our BGR behaviour using one VCVS as an ideal OpAmp. [netlist](/prelayout/bgr_using_ideal_opamp.sp)
+
+In this simulation we should get the reference voltgae as an umbrella shaped curve and it should be ~1.2V.    
+
+![Ideal_bgr](images/ideal_bgr.png)
+
+#### 3.4.4 BGR with SBCM
+
+Now we will replace the ideal Op-Amp with self-biased current mirror which is our proposed design. We expect same type of output as in case of ideal OpAmp based BGR. We will also check for different corners, and will see how our circuit is performing in different corners.
+
+- Behaviour in TT corner [netlsit](/prelayout/bgr_lvt_rpolyh_3p40.sp)
+
+  ![bgr_tt](images/bgr_tt.png)
+
+Tempco. Of Vref = ~21.7 PPM
+
+- Behaviour in FF corner [netlist](/prelayout/bgr_lvt_rpolyh_3p40_ff.sp)
+
+  ![bgr_ff](images/bgr_ff.png)
+
+Tempco. Of Vref = ~10 PPM
+
+- Behaviour in SS corner [netlist](/prelayout/bgr_lvt_rpolyh_3p40_ss.sp)
+
+  ![bgr_ss](images/bgr_ss.png)
+
+
+Tempco. Of Vref = ~45 PPM
+
+---
+
+### 4. Layout Design
+
+Now after getting our final **netlist**, we have to design the **layout** for our **Bandgap Reference (BGR)** circuit.  
+Layout is the graphical representation of the physical masks used in **IC fabrication**.  
+We are going to use the **Magic VLSI tool** for our layout design.
+
+#### Key Components:
+1. **NFET Block:**
+   - Contains all NMOS transistors arranged in a **common centroid** configuration.
+   - Includes dummy devices and a guard ring for isolation and matching.
+   - Used primarily in the current mirror and startup circuit.
+     
+     ![nfets](images/nfets.png)
+
+2. **PFET Block:**
+   - PFETs are placed symmetrically to ensure equal current distribution.
+   - Guard ring provided to suppress substrate coupling noise.
+   - Used in the mirror and biasing circuits.
+
+     ![pfets](images/pfets.png)
+
+3. **Resistor Bank:**
+   - Houses all resistors in a matched array configuration.
+   - Edge dummies used to avoid process variations.
+   - Provides PTAT and CTAT voltage scaling.
+
+     ![resbank](images/resbank.png)
+
+4. **BJT Block:**
+   - Diode-connected BJT for CTAT voltage generation.
+   - Placed close to the resistor bank to ensure uniform temperature tracking.
+
+     ![bjt](images/pnp10.png)
+
+5. **Startup Circuit (Center):**
+   - Labeled as **starternfet** in the layout.
+   - Ensures proper startup of the self-biased current mirror.
+   - Connected to NFET region for bias initialization.
+
+     ![Startup_ckt](images/starterfet.png)
+
+---
+
+#### Layout Details:
+| Parameter | Value / Description |
+|------------|---------------------|
+| Tool Used | Magic VLSI |
+| Technology | SkyWater SKY130 |
+| DRC Status | Clean (No Design Rule Errors) |
+| File Name | `bgr_top.mag` |
+| Layout Dimensions | ~85 µm × 73 µm |
+
+---
+
+### Layout Visualization:
+The image below shows the complete top-level BGR layout, where all components are interconnected and verified for DRC cleanliness.  
+
+<p align="center">
+<img src="images/layout.png" alt="Layout">
+</p>
+
+---
+
+### 5. LVS and Post layout simulation
+
+<p align="center">
+<img src="images/extraction.png" alt="Layout">
+</p>
+
+<p align="center">
+<img src="images/extspice.png" alt="Layout">
+</p>
