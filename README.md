@@ -1,7 +1,7 @@
 # Project Title: Design of 1.2V Bandgap Reference Circuit
 
 ## 1. Introduction
-This project involves the design and implementation of a Curvature-Compensated Bandgap Reference (BGR) circuit using the Sky130 (130nm) Process Design Kit. The primary objective is to generate a stable reference voltage ($V_{ref}$) that remains independent of supply voltage variations (Power Supply Rejection) and temperature fluctuations. By combining a PTAT (Proportional to Absolute Temperature) current and a CTAT (Complementary to Absolute Temperature) voltage, the circuit achieves a near-zero temperature coefficient, making it an essential building block for analog and mixed-signal systems like ADCs and LDOs.
+This project involves the design and implementation of a Bandgap Reference (BGR) circuit using the Sky130 (130nm) Process Design Kit. The primary objective is to generate a stable reference voltage ($V_{ref}$) that remains independent of supply voltage variations (Power Supply Rejection) and temperature fluctuations. By combining a PTAT (Proportional to Absolute Temperature) current and a CTAT (Complementary to Absolute Temperature) voltage, the circuit achieves a near-zero temperature coefficient, making it an essential building block for analog and mixed-signal systems like ADCs and LDOs.
 
 ---
 
